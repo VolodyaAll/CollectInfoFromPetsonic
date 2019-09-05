@@ -1,0 +1,2 @@
+# CollectInfoFromPetsonic
+Profitero test task
