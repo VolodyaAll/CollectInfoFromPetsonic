@@ -18,10 +18,19 @@ links_to_categories = html.xpath("//div[@id='subcategories']/ul/li/a").map { |el
 @product_urls = []
 
 links_to_categories.each do |link_to_category|
-    category_page = Nokogiri::HTML( Curl.get( link_to_category ).body_str )
+  http = Curl.get( link_to_category )
+
+  category_page = Nokogiri::HTML( http.body_str )
+
+  if category_page.xpath("//p[starts-with(@class, 'alert')]").text != 'No hay productos en esta categoría'
     product_links = category_page.xpath("//ul[@id='product_list']/li/div[1]/div/div[1]/a")
     @product_urls  = product_links.map {|el| el.attr 'href'}.uniq
     puts @product_urls
+    if Curl.get( link_to_category + "?p=2").body_str.empty?
+        puts "empty"
+    end
+
     puts '+++++++++++++++++++++++++++++++++++++++++++++++++++++++++'
+  end
 end
 
