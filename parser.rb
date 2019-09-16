@@ -20,26 +20,19 @@ class CommandLineParser
   end
 
   def self.init_parser(opts, options)
-    opt_on_t(opts, options)
-    opt_on_n(opts, options)
+    opt_on_u(opts, options)
     opt_on_f(opts, options)
     opts.on('-h', '--help', 'Prints this help') { puts opts }
   end
 
-  def self.opt_on_t(opts, options)
-    opts.on('-tTOP', '--top=INTEGER>0', /[1-9]+/, 'Number of gems according to the rating') do |ttt|
-      options[:top] = ttt
-    end
-  end
-
-  def self.opt_on_n(opts, options)
-    opts.on('-nNAME', '--name=REGEX', 'Gem name includes the given regular expression') do |nnn|
+  def self.opt_on_u(opts, options)
+    opts.on('-uURL', '--url=URL', 'URL to products category like https://www.petsonic.com/snacks-huesos-para-perros/') do |nnn|
       options[:name] = nnn
     end
   end
 
   def self.opt_on_f(opts, options)
-    opts.on('-fFILE', '--file=File.yml', /([a-zA-Z0-9\s_\\.\-\(\):])+.yml$/, '.yml file') do |fff|
+    opts.on('-fFILE', '--file=File.scv', /([a-zA-Z0-9\s_\\.\-\(\):])+.scv$/, '.scv file for results output') do |fff|
       options[:file] = fff[0]
     end
   end
