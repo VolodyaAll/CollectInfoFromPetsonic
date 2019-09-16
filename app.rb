@@ -5,9 +5,6 @@ require 'mechanize'
 require 'json'
 require_relative 'parser'
 
-
-
-
 base_url = 'https://www.petsonic.com/snacks-huesos-para-perros/'
 alt_url = 'https://www.petsonic.com/hobbit-half/'
 file = 'results.csv'
@@ -73,16 +70,13 @@ puts product_actuality
     
       product_image_urls.each_with_index do |_, index|
         if product_image_id[index] != -1
-          product_image_urls[index] = product_image_urls[index].to_s.gsub(/\d{5}/, product_image_id[index].to_s)
+          product_image_urls[index] = product_image_urls[index].to_s.gsub(/\d{#{product_image_id[index].to_s.length}}/, product_image_id[index].to_s)
         end
       end
 
 puts product_image_urls
     end
-    
-    if Curl.get( link_to_category + "?p=2").body_str.empty?
-        puts "empty"
-    end
+
 
     puts '+++++++++++++++++++++++++++++++++++++++++++++++++++++++++'
   end
