@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'optparse'
 
 class CommandLineParser
@@ -13,8 +15,8 @@ class CommandLineParser
 
   def self.raise_error(opts_p, args)
     opts_p.parse(args)
-  rescue OptionParser::InvalidOption => err
-    puts "Exception encountered: #{err} (#{err.class})"
+  rescue OptionParser::InvalidOption => e
+    puts "Exception encountered: #{e} (#{e.class})"
     opts_p.parse %w[--help]
     exit 1
   end
@@ -26,13 +28,18 @@ class CommandLineParser
   end
 
   def self.opt_on_u(opts, options)
-    opts.on('-uURL', '--url=URL', 'URL to products category like https://www.petsonic.com/snacks-huesos-para-perros/') do |nnn|
-      options[:name] = nnn
+    opts.on('-uURL',
+            '--url=URL',
+            'URL to products category like https://www.petsonic.com/snacks-huesos-para-perros/') do |nnn|
+      options[:url] = nnn
     end
   end
 
   def self.opt_on_f(opts, options)
-    opts.on('-fFILE', '--file=File.scv', /([a-zA-Z0-9\s_\\.\-\(\):])+.scv$/, '.scv file for results output') do |fff|
+    opts.on('-fFILE',
+            '--file=File.scv',
+            /([a-zA-Z0-9\s_\\.\-\(\):])+.csv$/,
+          '.scv file for results output. Default: results.scv') do |fff|
       options[:file] = fff[0]
     end
   end
