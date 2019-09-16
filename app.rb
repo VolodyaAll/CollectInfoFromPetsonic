@@ -5,16 +5,23 @@ require 'mechanize'
 require 'json'
 require_relative 'parser'
 
+robots_url = 'https://www.petsonic.com/robots.txt'
+ROBOTS_DELAY = Nokogiri::HTML(Curl.get(robots_url).body_str).to_s.scan(/Crawl-delay.*/)[1].scan(/\d+/)[0].to_f/1000.0.freeze
+
 base_url = 'https://www.petsonic.com/snacks-huesos-para-perros/'
 alt_url = 'https://www.petsonic.com/hobbit-half/'
 file = 'results.csv'
-robots_url = 'https://www.petsonic.com/robots.txt'
+
 links_to_categories = []
-ROBOTS_DELAY = Nokogiri::HTML(Curl.get(robots_url).body_str).to_s.scan(/Crawl-delay.*/)[1].scan(/\d+/)[0].to_f/1000.0.freeze
+i = 0
 
 def get_with_delay(url)
   sleep ROBOTS_DELAY
   Curl.get(url)
+end
+
+CSV.open(file, "wb") do |csv|
+  csv << ["id", "Name", "Price", "Image", "Relevance"]
 end
 
 # parse command line product_params
@@ -30,7 +37,7 @@ links_to_categories_first_page.each do |link|
   links_to_categories << link + "?p=2"
 end
 
-puts links_to_categories
+# puts links_to_categories
 links_to_categories.each do |link_to_category|
   http = get_with_delay( link_to_category )
   category_page = Nokogiri::HTML( http.body_str )
@@ -48,14 +55,14 @@ links_to_categories.each do |link_to_category|
       product_image_urls = []
 
       product_name = product_page.xpath("//h1[@class='product_main_name']").text
-puts product_name
+# puts product_name
 
       product_params = JSON.parse(product_page.xpath("//script[@type='text/javascript']")[0].to_s.scan(/var combinations=(.*?)}};/)[0][0] + '}}')
       product_params.each do |_, value|
         actual_product_weigths << value["attributes_values"].map{ |_, value| value}.join(" ")
         product_image_id << value['id_image']
       end
-puts product_image_id
+# puts product_image_id
 
       product_actuality = product_page.xpath("//html/body/div[2]/div[1]/div/div[1]/div/div/div/div/div[2]/div[3]/p").text
 puts product_actuality
@@ -80,13 +87,18 @@ puts product_actuality
           actual_image_substring = product_image_id[index].to_s
           product_image_urls[index] = product_image_urls[index].to_s.gsub(/\d{#{actual_image_substring.length}}/, actual_image_substring.to_s)
         end
+        CSV.open(file, "a+") do |csv|
+# puts ["#{product_name} #{actual_product_weigths[index]}", product_price[index], product_image_urls[index], product_actuality]
+          csv << ["#{i += 1}", "#{product_name} #{actual_product_weigths[index]}", product_price[index], product_image_urls[index], product_actuality]
+        end
       end
 
-puts product_image_urls
+# puts product_image_urls
     end
 
 
     puts '+++++++++++++++++++++++++++++++++++++++++++++++++++++++++'
+
   end
 end
 
