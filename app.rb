@@ -8,12 +8,19 @@ require_relative 'parser'
 base_url = 'https://www.petsonic.com/snacks-huesos-para-perros/'
 alt_url = 'https://www.petsonic.com/hobbit-half/'
 file = 'results.csv'
+robots_url = 'https://www.petsonic.com/robots.txt'
 links_to_categories = []
+ROBOTS_DELAY = Nokogiri::HTML(Curl.get(robots_url).body_str).to_s.scan(/Crawl-delay.*/)[1].scan(/\d+/)[0].to_f/1000.0.freeze
+
+def get_with_delay(url)
+  sleep ROBOTS_DELAY
+  Curl.get(url)
+end
 
 # parse command line product_params
 options = CommandLineParser.parse(ARGV)
 
-http = Curl.get(base_url)
+http = get_with_delay(base_url)
 html = Nokogiri::HTML(http.body_str)
 
 links_to_categories_first_page = html.xpath("//div[@id='subcategories']/ul/li/a").map { |el| el.attr 'href' }
@@ -25,7 +32,7 @@ end
 
 puts links_to_categories
 links_to_categories.each do |link_to_category|
-  http = Curl.get( link_to_category )
+  http = get_with_delay( link_to_category )
   category_page = Nokogiri::HTML( http.body_str )
 
   if category_page.xpath("//p[starts-with(@class, 'alert')]").text != 'No hay productos en esta categoría' && !http.body_str.empty?
@@ -34,7 +41,7 @@ links_to_categories.each do |link_to_category|
     product_links  = product_elements.map {|element| element.attr 'href'}
 
     product_links.each do |product_link|
-      http = Curl.get( product_link )
+      http = get_with_delay( product_link )
       product_page = Nokogiri::HTML( http.body_str )
       actual_product_weigths = []
       product_image_id = []
@@ -63,14 +70,15 @@ puts product_actuality
 
       product_weights.each_with_index do |product_weight, index|
         product_weigth_link = "#{product_link}#/#{product_radio_value[index]}-#{product_help_value}-#{product_weight.gsub(' ', '_')}".downcase
-        http = Curl.get( product_weigth_link )
+        http = get_with_delay( product_weigth_link )
         product_page = Nokogiri::HTML( http.body_str )
         product_image_urls << product_page.xpath("//img[@id='bigpic']").attr('src')              
       end 
     
       product_image_urls.each_with_index do |_, index|
         if product_image_id[index] != -1
-          product_image_urls[index] = product_image_urls[index].to_s.gsub(/\d{#{product_image_id[index].to_s.length}}/, product_image_id[index].to_s)
+          actual_image_substring = product_image_id[index].to_s
+          product_image_urls[index] = product_image_urls[index].to_s.gsub(/\d{#{actual_image_substring.length}}/, actual_image_substring.to_s)
         end
       end
 
@@ -81,4 +89,7 @@ puts product_image_urls
     puts '+++++++++++++++++++++++++++++++++++++++++++++++++++++++++'
   end
 end
+
+
+
 
