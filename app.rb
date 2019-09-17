@@ -21,18 +21,43 @@ file = options[:file] || 'results.csv'
 
 links_to_categories = []
 
+def no_products(html)
+  html.xpath("//p[starts-with(@class, 'alert')]").text == 'No hay productos en esta categoría'
+end
+
+def error(html)
+  html.xpath("//div[starts-with(@class, 'alert')]/p").text == 'Error 1'
+end
+
+def show_message(url, message)
+  puts "Link #{url} to #{message} is not available"
+end
+
 def get_with_delay(url, message)
   sleep(ROBOTS_DELAY)
   http = Curl.get(url).body_str
   html = Nokogiri::HTML(http)
 
-  if http.empty? ||
-     html.xpath("//p[starts-with(@class, 'alert')]").text == 'No hay productos en esta categoría'
-    puts "Link #{url} to #{message} is not available"
+  if no_products(html)
+    show_message(url, message)
     return false
   end
 
-  print "Collect info about #{message}"
+  if http.empty?
+    show_message(url, message)
+    return false if message != 'product'
+    url.to_s.gsub!('.com/', '.com/hobbit-alf-')
+    sleep(ROBOTS_DELAY)
+    http = Curl.get(url).body_str
+    html = Nokogiri::HTML(http)
+
+    if http.empty? || error(html) || no_products(html)
+      show_message(url, message)
+      return false
+    end
+  end
+
+  print "Collect info from about #{message}"
   html
 end
 
