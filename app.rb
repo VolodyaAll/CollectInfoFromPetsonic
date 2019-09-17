@@ -45,7 +45,7 @@ def get_with_delay(url, message)
 
   if http.empty?
     show_message(url, message)
-    return false if message != 'product'
+    return false unless message == 'product'
     url.to_s.gsub!('.com/', '.com/hobbit-alf-')
     sleep(ROBOTS_DELAY)
     http = Curl.get(url).body_str
