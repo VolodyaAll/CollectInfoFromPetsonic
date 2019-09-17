@@ -30,17 +30,17 @@ class CommandLineParser
   def self.opt_on_u(opts, options)
     opts.on('-uURL',
             '--url=URL',
-            'URL to products category like https://www.petsonic.com/snacks-huesos-para-perros/') do |nnn|
-      options[:url] = nnn
+            'URL to products category like https://www.petsonic.com/snacks-huesos-para-perros/') do |url_args|
+      options[:url] = url_args
     end
   end
 
   def self.opt_on_f(opts, options)
     opts.on('-fFILE',
-            '--file=File.scv',
+            '--file=File.csv',
             /([a-zA-Z0-9\s_\\.\-\(\):])+.csv$/,
-          '.scv file for results output. Default: results.scv') do |fff|
-      options[:file] = fff[0]
+          '.scv file for results output. Default: results.csv') do |file_args|
+      options[:file] = file_args[0]
     end
   end
 end

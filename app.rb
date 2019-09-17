@@ -5,7 +5,7 @@ require 'curb'
 require 'nokogiri'
 require 'mechanize'
 require 'json'
-require_relative 'parser'
+require_relative 'command_line_parser'
 
 robots_txt = 'https://www.petsonic.com/robots.txt'
 TABLE_COLUMNS = %w[Name Price Image Relevance]
@@ -47,9 +47,12 @@ def product_links(category_page)
 end
 
 def product_params(product_page)
-  JSON.parse(product_page.xpath("//script[@type='text/javascript']")[0]
-  .to_s
-  .scan(/var combinations=(.*?)}};/)[0][0] + '}}')
+  JSON.parse(
+    product_page
+    .xpath("//script[@type='text/javascript']")[0]
+    .to_s
+    .scan(/var combinations=(.*?)}};/)[0][0] + '}}'
+  )
 end
 
 def show_category_name(category_page)
@@ -80,6 +83,27 @@ def product_image_url(product_page)
   .attr('src')
 end
 
+def proccess_product_link(product_page, csv)
+  product_name = product_name(product_page)
+  product_price = product_price(product_page)
+  product_image_url = product_image_url(product_page)
+  product_actuality = product_actuality(product_page)
+  puts product_name
+
+  product_weigths_and_image_ids = product_params(product_page).map do |_, value|
+    [value['attributes_values'].map { |_, value| value }.join(' '), value['id_image']]
+  end
+
+  product_weigths_and_image_ids.each_with_index do |data, index|
+    product_image_url.to_s.gsub!(/\d{#{data[1].to_s.length}}/, data[1].to_s) unless data[1] == -1
+
+    csv << ["#{product_name} #{data[0]}",
+            product_price[index],
+            product_image_url,
+            product_actuality]
+  end
+end
+
 html = get_with_delay(base_url, "categories ")
 show_category_name(html)
 
@@ -100,24 +124,7 @@ if html
       product_links(category_page).each do |product_link|
         product_page = get_with_delay(product_link, 'product')
         next unless product_page
-        product_name = product_name(product_page)
-        product_price = product_price(product_page)
-        product_image_url = product_image_url(product_page)
-        product_actuality = product_actuality(product_page)
-        puts product_name
-
-        product_weigths_and_image_ids = product_params(product_page).map do |_, value|
-          [value['attributes_values'].map { |_, value| value }.join(' '), value['id_image']]
-        end
-
-        product_weigths_and_image_ids.each_with_index do |data, index|
-          product_image_url.to_s.gsub!(/\d{#{data[1].to_s.length}}/, data[1].to_s) unless data[1] == -1
-
-          csv << ["#{product_name} #{data[0]}",
-                  product_price[index],
-                  product_image_url,
-                  product_actuality]
-        end
+        proccess_product_link(product_page, csv)
       end
     end
   end
