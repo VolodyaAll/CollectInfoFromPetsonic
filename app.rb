@@ -8,11 +8,12 @@ require 'json'
 require_relative 'parser'
 
 robots_txt = 'https://www.petsonic.com/robots.txt'
+TABLE_COLUMNS = %w[Name Price Image Relevance]
 ROBOTS_DELAY = Nokogiri::HTML(Curl.get(robots_txt).body_str)
-                 .to_s
-                 .scan(/Crawl-delay.*/)[1]
-                 .scan(/\d+/)[0]
-                 .to_f / 1000.0
+               .to_s
+               .scan(/Crawl-delay.*/)[1]
+               .scan(/\d+/)[0]
+               .to_f / 1000.0
 
 options = CommandLineParser.parse(ARGV)
 base_url = options[:url] || 'https://www.petsonic.com/snacks-huesos-para-perros/'
@@ -21,104 +22,100 @@ file = options[:file] || 'results.csv'
 links_to_categories = []
 
 def get_with_delay(url, message)
-  sleep ROBOTS_DELAY
+  sleep(ROBOTS_DELAY)
   http = Curl.get(url).body_str
+  html = Nokogiri::HTML(http)
 
-  if http.empty?
-    puts "Link to #{message} is not available"
+  if http.empty? ||
+     html.xpath("//p[starts-with(@class, 'alert')]").text == 'No hay productos en esta categoría'
+    puts "Link #{url} to #{message} is not available"
     return false
   end
 
   print "Collect info about #{message}"
-  Nokogiri::HTML(http)
+  html
 end
 
-CSV.open(file, 'wb') do |csv|
-  csv << %w[Name Price Image Relevance]
+def links_to_categories_first_page(html)
+  html.xpath("//div[@id='subcategories']/ul/li/a")
+    .map { |el| el.attr 'href' }
 end
 
-html = get_with_delay(base_url, "categories\n")
+def product_links(category_page)
+  product_elements = category_page.xpath("//ul[@id='product_list']/li/div[1]/div/div[1]/a")
+  product_elements.map { |element| element.attr 'href' }
+end
+
+def product_params(product_page)
+  JSON.parse(product_page.xpath("//script[@type='text/javascript']")[0]
+  .to_s
+  .scan(/var combinations=(.*?)}};/)[0][0] + '}}')
+end
+
+def show_category_name(category_page)
+  puts category_page.xpath("//span[@class='cat-name']").text
+end
+
+def product_name(product_page)
+  product_page.xpath("//h1[@class='product_main_name']").text
+end
+
+def product_actuality(product_page)
+  product_page
+  .xpath('//html/body/div[2]/div[1]/div/div[1]/div/div/div/div/div[2]/div[3]/p')
+  .text
+end
+
+def product_price(product_page)
+  product_page
+  .xpath("//div[@id='attributes']/fieldset[@class='attribute_fieldset']")
+  .map { |el| el }[0]
+  .xpath(".//div/ul/li/label/span[@class='price_comb']")
+  .map(&:text)
+end
+
+def product_image_url(product_page)
+  product_page
+  .xpath("//img[@id='bigpic']")
+  .attr('src')
+end
+
+html = get_with_delay(base_url, "categories ")
+show_category_name(html)
 
 if html
-  links_to_categories_first_page = html.xpath("//div[@id='subcategories']/ul/li/a")
-                                    .map { |el| el.attr 'href' }
-
-  links_to_categories_first_page.each do |link|
+  links_to_categories_first_page(html).each do |link|
     links_to_categories << link
     links_to_categories << link + '?p=2'
   end
 
-  links_to_categories.each do |link_to_category|
-    category_page = get_with_delay(link_to_category, "category\n")
+  CSV.open(file, 'wb') do |csv|
+    csv << TABLE_COLUMNS
 
-    next unless category_page &&
-                category_page.xpath("//p[starts-with(@class, 'alert')]").text != 'No hay productos en esta categoría'
+    links_to_categories.each do |link_to_category|
+      category_page = get_with_delay(link_to_category, "subcategory ")
+      next unless category_page
+      show_category_name(category_page)
 
-    product_elements = category_page.xpath("//ul[@id='product_list']/li/div[1]/div/div[1]/a")
-    product_links = product_elements.map { |element| element.attr 'href' }
+      product_links(category_page).each do |product_link|
+        product_page = get_with_delay(product_link, 'product')
+        next unless product_page
+        product_name = product_name(product_page)
+        product_price = product_price(product_page)
+        product_image_url = product_image_url(product_page)
+        product_actuality = product_actuality(product_page)
+        puts product_name
 
-    product_links.each do |product_link|
-      product_page = get_with_delay(product_link, 'product')
-
-      next unless product_page
-
-      actual_product_weigths = []
-      product_image_ids = []
-      product_image_urls = []
-
-      product_name = product_page.xpath("//h1[@class='product_main_name']").text
-      print "#{product_name}\n"
-      product_params = JSON.parse(product_page.xpath("//script[@type='text/javascript']")[0]
-                                  .to_s
-                                  .scan(/var combinations=(.*?)}};/)[0][0] + '}}')
-      product_params.each do |_, value|
-        actual_product_weigths << value['attributes_values']
-                                  .map { |_, value| value }.join(' ')
-        product_image_ids << value['id_image']
-      end
-
-      product_actuality = product_page
-                          .xpath('//html/body/div[2]/div[1]/div/div[1]/div/div/div/div/div[2]/div[3]/p')
-                          .text
-
-      product_fieldset = product_page
-                         .xpath("//div[@id='attributes']/fieldset[@class='attribute_fieldset']")
-                         .map { |el| el }[0]
-
-      product_weights = product_fieldset
-                        .xpath(".//div/ul/li/label/span[@class='radio_label']")
-                        .map(&:text)
-      product_price = product_fieldset
-                      .xpath(".//div/ul/li/label/span[@class='price_comb']")
-                      .map(&:text)
-      product_radio_value = product_fieldset
-                            .xpath('.//div/ul/li/input')
-                            .map { |el| el.attr('value') }
-      product_help_value = product_fieldset.text.split(' ')[0][0..-2]
-
-      product_weights.each_with_index do |product_weight, index|
-        product_weigth_link = "#{product_link}#/#{product_radio_value[index]}-#{product_help_value}-#{product_weight.gsub(' ', '_')}"
-                                .downcase
-        product_weigth_page = get_with_delay(product_weigth_link,
-                                             "product weigth #{product_weight}\n")
-        next if product_weigth_page
-        product_image_urls << product_page
-                              .xpath("//img[@id='bigpic']")
-                              .attr('src')
-      end
-
-      product_image_urls.each_with_index do |_, index|
-        if product_image_ids[index] != -1
-          actual_image_substring = product_image_ids[index].to_s
-          product_image_urls[index] = product_image_urls[index]
-                                      .to_s
-                                      .gsub(/\d{#{actual_image_substring.length}}/, actual_image_substring.to_s)
+        product_weigths_and_image_ids = product_params(product_page).map do |_, value|
+          [value['attributes_values'].map { |_, value| value }.join(' '), value['id_image']]
         end
 
-        CSV.open(file, 'a+') do |csv|
-          csv << ["#{product_name} #{actual_product_weigths[index]}",
+        product_weigths_and_image_ids.each_with_index do |data, index|
+          product_image_url.to_s.gsub!(/\d{#{data[1].to_s.length}}/, data[1].to_s) unless data[1] == -1
+
+          csv << ["#{product_name} #{data[0]}",
                   product_price[index],
-                  product_image_urls[index],
+                  product_image_url,
                   product_actuality]
         end
       end
