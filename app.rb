@@ -57,7 +57,7 @@ def get_with_delay(url, message)
     end
   end
 
-  print "Collect info from about #{message}"
+  print "Collect info about #{message}"
   html
 end
 
@@ -67,7 +67,7 @@ def links_to_categories_first_page(html)
 end
 
 def product_links(category_page)
-  product_elements = category_page.xpath("//ul[@id='product_list']/li/div[1]/div/div[1]/a")
+  product_elements = category_page.xpath("//ul[@id='product_list']/li/div[@class='product-container']/div/div[@class='pro_first_box ']/a")
   product_elements.map { |element| element.attr 'href' }
 end
 
@@ -90,7 +90,7 @@ end
 
 def product_actuality(product_page)
   product_page
-  .xpath('//html/body/div[2]/div[1]/div/div[1]/div/div/div/div/div[2]/div[3]/p')
+  .xpath("//div[@class='substitucion-text-container']/p")
   .text
 end
 
