@@ -98,7 +98,7 @@ def product_price(product_page)
            .xpath(".//div/ul/li/label/span[@class='price_comb']")
            .map(&:text)
   else
-    return [parse_product_params(product_page, "//script[@data-keepinline='true']", /\"products\":\[(.*?)\]}},/)['price'] + ' €']
+    return [parse_product_params(product_page, "//script[@data-keepinline='true']", /\"products\":\[(.*?)\]}},/)['price'].to_s + ' €']
   end
 end
 
