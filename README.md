@@ -1,2 +1,4 @@
 # CollectInfoFromPetsonic
-Profitero test task
+***
+Скрипт собирает информацию о продуктах( название, весовка, цена, ссылка на фото, актуальность ) с сайта petsonic.com
+
