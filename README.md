@@ -1,5 +1,4 @@
 # CollectInfoFromPetsonic
-***
 Тестовое задание от Profitero
 ***
 ## Назначение
