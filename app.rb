@@ -8,7 +8,7 @@ require 'json'
 require_relative 'command_line_parser'
 
 robots_txt = 'https://www.petsonic.com/robots.txt'
-TABLE_COLUMNS = %w[Name Price Image Relevance]
+TABLE_COLUMNS = %w[Name Price(€) Image Relevance]
 ROBOTS_DELAY = Nokogiri::HTML(Curl.get(robots_txt).body_str)
                .to_s
                .scan(/Crawl-delay.*/)[1]
@@ -66,11 +66,13 @@ end
 
 def product_weigths_and_image_ids(product_page)
   product_combinations = parse_product_params(product_page, "//script[@type='text/javascript']", /var combinations=(.*?);var/)
+  price_multiplier = parse_product_params(product_page, "//script[@type='text/javascript']", /productBasePriceTaxExcluded=(.*?);var/).to_f / parse_product_params(product_page, "//script[@type='text/javascript']", /productBasePriceTaxIncl=(.*?);var/).to_f
 
   if product_combinations
-    return product_combinations.map{ |_, value| [product_weigth_combination(value['attributes_values']), value['id_image'].to_s] }.uniq
+    return product_combinations.map{ |_, value| [product_weigth_combination(value['attributes_values']), value['id_image'].to_s, (value['price'].to_f / price_multiplier).round(2)] }.uniq
   else
-    return [[parse_product_params(product_page, "//script[@data-keepinline='true']", /\"products\":\[(.*?)\]}},/)['variant'], '-1']]
+    product_combinations = parse_product_params(product_page, "//script[@data-keepinline='true']", /\"products\":\[(.*?)\]}},/)
+    return [[product_combinations['variant'], '-1', product_combinations['price']]]
   end
 end
 
@@ -88,20 +90,6 @@ def product_actuality(product_page)
   .text
 end
 
-def product_price(product_page)
-  attributes_fieldset = product_page
-                        .xpath("//div[@id='attributes']/fieldset[@class='attribute_fieldset']")
-                        .map { |el| el }[0]
-
-  if attributes_fieldset
-    return attributes_fieldset
-           .xpath(".//div/ul/li/label/span[@class='price_comb']")
-           .map(&:text)
-  else
-    return [parse_product_params(product_page, "//script[@data-keepinline='true']", /\"products\":\[(.*?)\]}},/)['price'].to_s + ' €']
-  end
-end
-
 def product_image_url(product_page)
   product_page
   .xpath("//img[@id='bigpic']")
@@ -115,13 +103,13 @@ end
 def proccess_product_link(product_page, results)
   product_name = product_name(product_page)
   puts product_name
-  product_price = product_price(product_page)
   product_image_url = product_image_url(product_page)
   product_actuality = product_actuality(product_page)
 
+
   product_weigths_and_image_ids(product_page).each_with_index do |data, index|
     results << ["#{product_name} #{data[0]}",
-                product_price[index],
+                data[2],
                 product_weigth_image_url(product_image_url, data[1]),
                 product_actuality]
   end
